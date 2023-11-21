@@ -1,0 +1,80 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "https://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="https://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+	<head>
+		<title>anastasia2017-teacher-video-blank</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<style type="text/css" media="screen">
+		html, body { height:100%; background-color: #333333;}
+		body { margin:0; padding:0; overflow:hidden; }
+		#flashContent { width:100%; height:100%; }
+		.modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgb(0,0,0); background-color: rgba(0,0,0,0.4); }
+		.modal-content { background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: max-content; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+		.close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+		.close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; }
+		</style>
+	</head>
+	<body>
+		<div id="myModal" class="modal">
+			<div class="modal-content">
+				<span class="close">&times;</span>
+				<div id="video_modal" style="margin: 0 auto; width: 800px;"></div>
+			</div>
+		</div>
+		<div id="flashContent">
+			<object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000" width="100%" height="100%" id="anastasia2017-teacher-video-blank" align="middle">
+				<param name="movie" value="anastasia2017-teacher-video-blank.swf" />
+				<param name="quality" value="high" />
+				<param name="bgcolor" value="#333333" />
+				<param name="play" value="true" />
+				<param name="loop" value="true" />
+				<param name="wmode" value="window" />
+				<param name="scale" value="showall" />
+				<param name="menu" value="true" />
+				<param name="devicefont" value="false" />
+				<param name="salign" value="" />
+				<param name="allowScriptAccess" value="sameDomain" />
+				<!--[if !IE]>-->
+				<object type="application/x-shockwave-flash" data="anastasia2017-teacher-video-blank.swf" width="100%" height="100%">
+					<param name="movie" value="anastasia2017-teacher-video-blank.swf" />
+					<param name="quality" value="high" />
+					<param name="bgcolor" value="#333333" />
+					<param name="play" value="true" />
+					<param name="loop" value="true" />
+					<param name="wmode" value="window" />
+					<param name="scale" value="showall" />
+					<param name="menu" value="true" />
+					<param name="devicefont" value="false" />
+					<param name="salign" value="" />
+					<param name="allowScriptAccess" value="sameDomain" />
+				<!--<![endif]-->
+					<a href="https://www.adobe.com/go/getflash">
+						<img src="https://www.adobe.com/images/shared/download_buttons/get_flash_player.gif" alt="Get Adobe Flash player" />
+					</a>
+				<!--[if !IE]>-->
+				</object>
+				<!--<![endif]-->
+			</object>
+		</div>
+                <script type="text/javascript">
+		var modal = document.getElementById("myModal");
+                var span = document.getElementsByClassName("close")[0];
+                var video = document.getElementById("video_modal");
+		function openModal(videoURL) {
+                        video.innerHTML = '<video width="100%" controls><source src="' + videoURL + '" type="video/mp4">Your browser does not support the video tag.</video>';
+                        modal.style.display = "block";
+		}
+		span.onclick = function() {
+			modal.style.display = "none";
+			video.innerHTML = "";
+		}
+		window.onclick = function(event) {
+			if (event.target == modal) {
+				modal.style.display = "none";
+				video.innerHTML = "";
+			}
+		}
+                </script>
+		<script type="text/javascript" src="https://unpkg.com/@ruffle-rs/ruffle"></script>
+                <script type="text/javascript">window.RufflePlayer.config = { autoplay: "on", unmuteOverlay: "hidden" };</script>
+	</body>
+</html>
