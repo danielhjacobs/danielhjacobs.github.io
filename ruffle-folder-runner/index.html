@@ -18,8 +18,11 @@
     Choose the folder that contains <code>index.html</code> and all assets (SWF, JS, CSS, images).
     The script will convert files to blob URLs and serve a rewritten <code>index.html</code> inside an iframe.
   </p>
-
-  <input id="dirpicker" type="file" webkitdirectory directory multiple />
+  <select id="ruffleSource">
+    <option value="cdn">Use CDN (online)</option>
+    <option value="local">Use local Ruffle</option>
+  </select>
+  <input id="dirpicker" type="file" webkitdirectory />
   <button id="runBtn" disabled>Load selected folder</button>
   <div id="status"></div>
   <div style="margin-top:8px;">
@@ -36,6 +39,8 @@
   const statusEl = document.getElementById('status');
   const filesEl = document.getElementById('files');
   const iframe = document.getElementById('frame');
+
+  const ruffleSourceEl = document.getElementById('ruffleSource');
 
   // CDN URL for Ruffle: if this changes in the future you can replace with the correct one.
   // This should work for most releases; if you want a specific version, append @version:
@@ -100,9 +105,33 @@
     });
   }
 
-  // Helper: create blob URL for a file
-  function createBlobUrlForFile(file) {
-    return URL.createObjectURL(file);
+  // Helper: create data URI for a file
+  async function fileToDataUri(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const mime = file.type || 'application/octet-stream';
+        // Encode as base64 if binary (ArrayBuffer) or leave as text
+        if (mime.startsWith('text/') || mime === 'application/javascript' || mime === 'application/json') {
+          // Text files can be embedded directly
+          resolve(`data:${mime};charset=utf-8,${encodeURIComponent(reader.result)}`);
+        } else {
+          // Binary: base64
+          const base64 = btoa(
+            new Uint8Array(reader.result)
+              .reduce((data, byte) => data + String.fromCharCode(byte), '')
+          );
+          resolve(`data:${mime};base64,${base64}`);
+        }
+      };
+      reader.onerror = reject;
+
+      if (file.type.startsWith('text/') || file.type === 'application/javascript' || file.type === 'application/json') {
+        reader.readAsText(file);
+      } else {
+        reader.readAsArrayBuffer(file);
+      }
+    });
   }
 
   // Resolve a possibly relative URL against base directory (both are path-like)
@@ -187,7 +216,7 @@
         continue;
       }
       // Create blob URL directly
-      const url = createBlobUrlForFile(file);
+      const url = await fileToDataUri(file);
       blobMap.set(p, url);
     }
 
@@ -213,7 +242,7 @@
     // For simplicity, create blob URLs for JS files too (we could rewrite import urls if needed).
     for (const [p, file] of byPath.entries()) {
       if (!p.toLowerCase().endsWith('.js')) continue;
-      const url = createBlobUrlForFile(file);
+      const url = await fileToDataUri(file);
       blobMap.set(p, url);
     }
 
@@ -242,11 +271,20 @@
     }
 
     // Inject the Ruffle CDN script into head (before other scripts), ensure it loads as classic script
-    const ruffleScriptEl = doc.createElement('script');
-    ruffleScriptEl.src = RUFFLE_CDN;
-    ruffleScriptEl.defer = false;
-    // ensure ruffle autostart (we'll call instantiateAll later), optionally configure via window.RufflePlayer config
-    doc.head.appendChild(ruffleScriptEl);
+    if (ruffleSourceEl.value === 'cdn') {
+      const ruffleScriptEl = doc.createElement('script');
+      ruffleScriptEl.src = RUFFLE_CDN;
+      ruffleScriptEl.defer = false;
+      doc.head.appendChild(ruffleScriptEl);
+      log('🌐 Using CDN Ruffle.');
+    }
+    if (ruffleSourceEl.value === 'local') {
+      const ruffleScriptEl = doc.createElement('script');
+      ruffleScriptEl.src = "js/ruffle/ruffle.js";
+      ruffleScriptEl.defer = false;
+      doc.head.appendChild(ruffleScriptEl);
+      log('Using local Ruffle.');
+    }
 
     // Helper to map attribute values for elements
     function mapAttr(el, attrName, baseDir) {
@@ -346,47 +384,50 @@
 
         // Patch fetch()
         const originalFetch = window.fetch;
-// Helper to resolve redirect target if any
-function resolveBlobRedirect(url) {
-    try {
-        const absUrl = new URL(url, base).href;
-        for (const [key, blobUrl] of blobMap.entries()) {
-            const full = base + "/" + key;
-			const absUrlNoQuery = String(absUrl).split(/[?#]/)[0];
-            if (absUrl === full || absUrl.endsWith("/" + key) || absUrlNoQuery.endsWith("/" + key)) {
+        // Helper to resolve redirect target if any
+        function resolveBlobRedirect(url) {
+          try {
+            const absUrl = new URL(url, base).href;
+			console.log(absUrl);
+            for (const [key, blobUrl] of blobMap.entries()) {
+              const full = base + "/" + key;
+              const absUrlNoQuery = String(absUrl).split(/[?#]/)[0];
+              if (absUrl === full || absUrl.endsWith("/" + key) || absUrlNoQuery.endsWith("/" + key)) {
                 console.log("🔀 Redirecting fetch from", absUrl, "→", blobUrl);
                 return blobUrl;
+              }
             }
+          } catch (e) {
+            console.warn("URL resolution failed for", url, e);
+          }
+          return null;
         }
-    } catch (e) {
-        console.warn("URL resolution failed for", url, e);
-    }
-    return null;
-}
 
-// Patch fetch safely
-window.fetch = function(input, init) {
-  let url = input;
+        // Patch fetch safely
+        window.fetch = function(input, init) {
+          let url = input;
+		  console.log("input");
+		  console.log(input);
 
-  // If input is a Request object, preserve it
-  if (input instanceof Request) {
-    const redirected = resolveBlobRedirect(input.url);
-    if (redirected) {
-      // Clone request with new URL but same properties
-      const newRequest = new Request(redirected, input);
-      return originalFetch.call(this, newRequest, init);
-    }
-    return originalFetch.call(this, input, init);
-  }
+          // If input is a Request object, preserve it
+          if (input instanceof Request) {
+            const redirected = resolveBlobRedirect(input.url);
+            if (redirected) {
+              // Clone request with new URL but same properties
+              const newRequest = new Request(redirected, input);
+              return originalFetch.call(this, newRequest, init);
+            }
+            return originalFetch.call(this, input, init);
+          }
 
-  // If input is a string
-  const redirected = resolveBlobRedirect(input);
-  if (redirected) {
-    url = redirected;
-  }
+          // If input is a string
+          const redirected = resolveBlobRedirect(input);
+          if (redirected) {
+            url = redirected;
+          }
 
-  return originalFetch.call(this, url, init);
-};
+          return originalFetch.call(this, url, init);
+        };
         // === END blob redirect patch ===
         function tryInstantiate() {
           if (window.RufflePlayer && typeof window.RufflePlayer.instantiateAll === 'function') {
@@ -410,30 +451,8 @@ window.fetch = function(input, init) {
     // Now serialize the modified document to text
     const finalHtml = '<!doctype html>\n' + doc.documentElement.outerHTML;
 
-    // Create blob for final HTML and create object URL to navigate iframe to
-    const finalBlob = new Blob([finalHtml], { type: 'text/html' });
-    const finalUrl = URL.createObjectURL(finalBlob);
-
-    // Also make sure all blob URLs we created remain live while iframe uses them.
-    // We'll keep references to blob URLs (they are in blobMap values) and the finalUrl.
-    // Attach them to iframe.dataset so they are retained in memory while iframe is open.
-    iframe.dataset._finalUrl = finalUrl;
-
-    // Release any previous iframe srcblob URL(s) if present (to avoid memory leak)
-    if (iframe.dataset._prevUrl) {
-      try { URL.revokeObjectURL(iframe.dataset._prevUrl); } catch(e){}
-    }
-    iframe.dataset._prevUrl = finalUrl;
-
     log('Launching rewritten page into iframe...');
-    iframe.src = finalUrl;
-
-    // Keep a record of created blob URLs so we can revoke them later if needed (not done automatically)
-    // Create an object to hold all created urls so they don't get GC'ed; user can refresh page to free them.
-    window.__ruffle_local_runner_blob_registry = window.__ruffle_local_runner_blob_registry || [];
-    for (const b of blobMap.values()) window.__ruffle_local_runner_blob_registry.push(b);
-    window.__ruffle_local_runner_blob_registry.push(finalUrl);
-	console.log(blobMap);
+    iframe.srcdoc = finalHtml;
 
     log('Done. If SWFs do not start automatically, check console in the preview iframe (right-click → Inspect).');
     log('Note: blob URLs will be kept alive while this page is open. Refreshing this page will free them.');
