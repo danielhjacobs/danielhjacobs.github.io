@@ -414,9 +414,19 @@
         function normalizeUrl(url) {
           let href = typeof url === "string" ? url : url.href;
 
-          href = href.replace(new RegExp('^file:///(?!.*?/)(.*)'), '$1');
+          try {
+            const u = new URL(href);
 
-          return href;
+            const segments = u.pathname.split('/').filter(Boolean);
+
+            if (segments.length === 1) {
+              return segments[0];
+            }
+
+            return href;
+          } catch (e) {
+            return href;
+          }
         }
         // Helper to resolve redirect target if any
         function resolveBlobRedirect(url) {
