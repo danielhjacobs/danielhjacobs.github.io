@@ -22,7 +22,7 @@
     <option value="cdn">Use CDN (online)</option>
     <option value="local">Use local Ruffle from folder</option>
   </select>
-  <input id="dirpicker" type="file" webkitdirectory />
+  <input id="dirpicker" type="file" webkitdirectory /><span style="margin:0;">or (.ruf) </span><input id="zipPicker" type="file" accept=".ruf" />
   <button id="runBtn" disabled>Load selected folder</button>
   <div id="status"></div>
   <div style="margin-top:8px;">
@@ -31,7 +31,7 @@
   </div>
 
   <iframe id="frame" title="preview"></iframe>
-
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
 (async () => {
   const dirpicker = document.getElementById('dirpicker');
@@ -39,6 +39,7 @@
   const statusEl = document.getElementById('status');
   const filesEl = document.getElementById('files');
   const iframe = document.getElementById('frame');
+  const zipPicker = document.getElementById("zipPicker");
 
   const ruffleSourceEl = document.getElementById('ruffleSource');
 
@@ -62,6 +63,44 @@
   function normPath(p) {
     return p.replace(/^\.\/+/, '').replace(/\\/g, '/');
   }
+
+  zipPicker.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    runBtn.disabled = true;
+    clearLog();
+    log("Reading ZIP file...");
+
+    try {
+      const arrayBuffer = await readFileArrayBuffer(file);
+      const zip = await JSZip.loadAsync(arrayBuffer);
+      byPath.clear();
+      filesEl.textContent = "";
+
+      const entries = Object.entries(zip.files);
+      fileList = [];
+
+      for (const [name, entry] of entries) {
+        if (entry.dir) continue;
+        const np = normPath(name);
+        const blob = await entry.async("blob");
+        const fileObj = new File([blob], np, { type: blob.type || "application/octet-stream" });
+        byPath.set(np, fileObj);
+        fileList.push(fileObj);
+
+        const div = document.createElement("div");
+        div.textContent = np;
+        filesEl.appendChild(div);
+      }
+
+      log("Extracted", fileList.length, "files from ZIP.");
+      runBtn.disabled = false;
+    } catch (err) {
+      log("Failed to read ZIP:", err);
+    }
+    ruffleSourceEl.value = "cdn";
+  });
 
   dirpicker.addEventListener('change', (e) => {
     fileList = Array.from(e.target.files || []);
@@ -198,9 +237,50 @@
         if (!indexPath) indexPath = p; // fallback: any index.html
       }
     }
+    let indexHtmlText = null;
+
     if (!indexPath) {
-      log('No index.html found in uploaded folder.');
-      return;
+      // Fallback: check for ruffle-bundle.toml
+      const tomlPath = Array.from(byPath.keys()).find(p => p.toLowerCase().endsWith('ruffle-bundle.toml'));
+      if (tomlPath) {
+        log('Found ruffle-bundle.toml, creating fake index.html.');
+
+        try {
+          const tomlText = await readFileText(byPath.get(tomlPath));
+          // Simple regex to extract url = "file:///..." or url="..."
+          const match = tomlText.match(/url\s*=\s*["'](file:\/\/\/[^"']+)["']/i);
+          if (match) {
+            const swfUrl = match[1].replace(/^file:\/\/\//, '');
+            indexPath = '__generated_index.html';
+            indexHtmlText = `
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${swfUrl}</title>
+</head>
+<body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;">
+  <embed src="${swfUrl}" type="application/x-shockwave-flash" width="100%" height="100%">
+</body>
+</html>`;
+            // Create a virtual File for consistency
+            byPath.set(indexPath, new File([indexHtmlText], indexPath, { type: 'text/html' }));
+          } else {
+            log('ruffle-bundle.toml found but no valid "url =" line detected.');
+            return;
+          }
+        } catch (err) {
+          log('Error reading ruffle-bundle.toml:', err);
+          return;
+        }
+      } else {
+        log('No index.html or ruffle-bundle.toml found in uploaded folder.');
+        return;
+      }
+    }
+
+    if (!indexHtmlText) {
+      indexHtmlText = await readFileText(byPath.get(indexPath));
     }
     log('Using index:', indexPath);
 
@@ -248,7 +328,6 @@
 
     // SVG may contain href/url references to other assets — handling that is possible but omitted here.
     // Now read the index.html, parse and rewrite its resource references
-    let indexHtmlText = await readFileText(byPath.get(indexPath));
     // We'll use DOMParser to reliably rewrite tags
     const parser = new DOMParser();
     const doc = parser.parseFromString(indexHtmlText, 'text/html');
