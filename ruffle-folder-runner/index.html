@@ -411,29 +411,27 @@
 
         // Patch fetch()
         const originalFetch = window.fetch;
+        function normalizeUrl(url) {
+          let href = typeof url === "string" ? url : url.href;
+
+          href = href.replace(new RegExp('^file:///(?!.*?/)(.*)'), '$1');
+
+          return href;
+        }
         // Helper to resolve redirect target if any
         function resolveBlobRedirect(url) {
           try {
-            console.log("url");
-            console.log(url);
+            url = normalizeUrl(url);
             const absUrl = new URL(url, base).href;
-			console.log("absUrl");
-			console.log(absUrl);
-			console.log("base");
-			console.log(base);
             for (const [key, blobUrl] of blobMap.entries()) {
-			  console.log("key");
-			  console.log(key);
-              const full = base + "/" + key;
               const absUrlNoQuery = String(absUrl).split(/[?#]/)[0];
+              const pathToUploadedBlob = base.substring(0, base.lastIndexOf('/')) + "/" + key;
               if (
-                absUrl === full ||
-                absUrl.endsWith("/" + key) ||
-                absUrlNoQuery.endsWith("/" + key) ||
+                absUrlNoQuery === pathToUploadedBlob ||
                 (
-                  absUrl.endsWith(".wasm") &&
                   isLocal &&
-                  absUrl.endsWith(key.replace(/^.*[\\/]/, ''))
+                  absUrlNoQuery.endsWith(".wasm") &&
+                  absUrlNoQuery.endsWith(key.replace(/^.*[\\/]/, ''))
                 )
               ) {
                 console.log("🔀 Redirecting fetch from", absUrl, "→", blobUrl);
