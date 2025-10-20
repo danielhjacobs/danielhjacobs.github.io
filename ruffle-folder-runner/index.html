@@ -251,13 +251,120 @@
           const match = tomlText.match(/url\s*=\s*["'](file:\/\/\/[^"']+)["']/i);
           if (match) {
             const swfUrl = match[1].replace(/^file:\/\/\//, '');
-            indexPath = '__generated_index.html';
-            indexHtmlText = `
+            const playerMatch = tomlText.match(/\[player\][\s\S]*?(?=\[|$)/i);
+            const tomlToConfigMap = {
+              align: "salign",
+              force_align: "forceAlign",
+              scale_mode: "scale",
+              force_scale_mode: "forceScale",
+              upgrade_http_to_https: "upgradeToHttps",
+              version: "playerVersion",
+              runtime: "playerRuntime",
+              frame_rate: "frameRate",
+              quality: "quality",
+              letterbox: "letterbox",
+              script_timeout: "maxExecutionDuration",
+              base_url: "base",
+          };
+
+          const config = {};
+
+          if (playerMatch) {
+            for (const line of playerMatch[0].split("\n")) {
+              const m = line.match(/^\s*([\w_]+)\s*=\s*["']?([^"']+)["']?/);
+              // Load behavior desktop only per https://github.com/ruffle-rs/ruffle/pull/8009#issuecomment-1283092686
+              // Dummy external interface is desktop only: https://github.com/ruffle-rs/ruffle/pull/11439
+              // Spoof URL is desktop only: https://github.com/ruffle-rs/ruffle/pull/8185
+              if (m && !["mock_external_interface", "load_behavior", "spoof_url"].includes(m[1])) {
+                const tomlKey = m[1];
+                const mappedKey = tomlToConfigMap[tomlKey] || tomlKey;
+                let val = m[2];
+                switch (tomlKey) {
+                  case "align": {
+                    const alignMap = {
+                      "bottom": "B",
+                      "bottom_left": "BL",
+                      "bottom_right": "BR",
+                      "left": "L",
+                      "right": "R",
+                      "top": "T",
+                      "top_left": "TL",
+                      "top_right": "TR",
+                      "center": "",
+                    };
+                    val = alignMap[val] ?? val;
+                    break;
+                  }
+
+                  case "force_align":
+                  case "force_scale_mode":
+                  case "upgrade_http_to_https":
+                    val = val === "true";
+                    break;
+
+                  case "scale_mode": {
+                    const scaleMap = {
+                      "exact_fit": "exactfit",
+                      "no_border": "noborder",
+                      "no_scale": "noscale",
+                      "show_all": "showAll",
+                    };
+                    val = scaleMap[val] ?? val;
+                    break;
+                  }
+
+                  case "version":
+                  case "script_timeout":
+                  case "frame_rate":
+                    val = parseFloat(val);
+                    break;
+
+                  case "runtime": {
+                    const runtimeMap = {
+                      flash_player: "flashPlayer",
+                      air: "air",
+                    };
+                    val = runtimeMap[val] ?? val;
+                    break;
+                  }
+
+                  default:
+                    // leave it
+                    break;
+                }
+
+                config[mappedKey] = val;
+              }
+            }
+          }
+          const paramsMatch = tomlText.match(/\[player\.parameters\][\s\S]*?(?=\[|$)/i);
+          if (paramsMatch) {
+            config.parameters = {};
+            for (const line of paramsMatch[0].split("\n")) {
+              const m = line.match(/^\s*([\w_]+)\s*=\s*["']([^"']+)["']/);
+              if (m) config.parameters[m[1]] = m[2];
+            }
+          }
+          indexPath = '__generated_index.html';
+          indexHtmlText = `
 <!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${swfUrl}</title>
+  <title>${swfUrl}</title>${
+    Object.keys(config).length
+      ? `
+  <script>
+    window.RufflePlayer = window.RufflePlayer || {};
+    window.RufflePlayer.config = {
+      ...window.RufflePlayer.config,
+      ${Object.entries(config)
+        .map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`)
+        .join(",\n      ")}
+    };
+  <\/script>`
+      : ""
+  }
 </head>
 <body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;">
   <embed src="${swfUrl}" type="application/x-shockwave-flash" width="100%" height="100%">
@@ -274,7 +381,7 @@
           return;
         }
       } else {
-        log('No index.html or ruffle-bundle.toml found in uploaded folder.');
+        log('No index.html or ruffle-bundle.toml found in uploaded folder or bundle.');
         return;
       }
     }
@@ -291,7 +398,7 @@
     // We'll handle CSS and HTML files specially (so we can rewrite inside them).
     for (const [p, file] of byPath.entries()) {
       const lower = p.toLowerCase();
-	  // Skip only HTML files that we will rewrite later (index.html itself)
+      // Skip only HTML files that we will rewrite later (index.html itself)
       if (lower === indexPath.toLowerCase() || lower.endsWith('.css') || lower.endsWith('.js')) {
         continue;
       }
@@ -442,15 +549,15 @@
     const finalizeScript = doc.createElement('script');
     finalizeScript.type = 'text/javascript';
 
-	// Strip first path segment from keys
-	const strippedEntries = Array.from(blobMap.entries()).map(([key, value]) => {
-	  const idx = key.indexOf("/");
-	  const newKey = idx >= 0 ? key.slice(idx + 1) : key;
-	  return [newKey, value];
-	});
+    // Strip first path segment from keys
+    const strippedEntries = Array.from(blobMap.entries()).map(([key, value]) => {
+      const idx = key.indexOf("/");
+      const newKey = idx >= 0 ? key.slice(idx + 1) : key;
+      return [newKey, value];
+    });
 
-	// Serialize for injection into iframe
-	const blobMapEntries = JSON.stringify(strippedEntries);
+    // Serialize for injection into iframe
+    const blobMapEntries = JSON.stringify(strippedEntries);
 
     finalizeScript.textContent = `
       (function(){
@@ -469,7 +576,7 @@
       Object.defineProperty(el, "src", {
         set(value) {
           // Look up the data URI by the chunk name
-		  const keys = Array.from(blobMap.keys());
+          const keys = Array.from(blobMap.keys());
           const key = keys.find(k => k.endsWith(value) || k.endsWith("/" + value));
           if (key) {
             const dataUri = blobMap.get(key);
