@@ -1,34 +1,131 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <title>Local folder → Ruffle runner</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin: 18px; }
-    input, button { font: inherit; }
-    #status { margin-top: 12px; white-space: pre-wrap; font-size: 13px; }
-    #frame { width: 100%; height: 80vh; border: 1px solid #ccc; margin-top: 12px; }
-    .files-list { max-height: 120px; overflow: auto; border: 1px dashed #ddd; padding: 8px; font-size: 12px; }
+  .panel {
+    margin: 0 auto;
+    max-width: 700px;
+  }
+
+  .row {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  label {
+    font-weight: bold;
+  }
+
+  select,
+  input[type="file"],
+  button {
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background: white;
+  }
+
+  details {
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    margin-top: 1rem;
+    padding: 0.5rem 1rem;
+  }
+
+  details summary {
+    cursor: pointer;
+    font-weight: bold;
+  }
+
+  pre {
+    background: #f9fafb;
+    border-radius: 6px;
+    padding: 0.75rem;
+    font-family: monospace;
+    font-size: 0.9rem;
+    overflow-x: auto;
+    max-height: 200px;
+  }
+
+  .files-list {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .or-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: dimgray;
+    font-weight: bold;
+    margin: 0.5rem 0;
+    position: relative;
+  }
+
+  .or-divider::before,
+  .or-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #e5e7eb;
+    margin: 0 0.75rem;
+  }
+  #frame {
+    width: 100%;
+    height: 77vh;
+    border: 1px solid #ccc;
+    margin-top: 12px;
+  }
+  h2 {
+    text-align: center;
+    font-size: 20px;
+  }
   </style>
 </head>
 <body>
-  <h2>Local folder runner — upload a site with SWFs and assets</h2>
-  <p>
-    Choose the folder that contains <code>index.html</code> and all assets (SWF, JS, CSS, images).
-    The script will convert files to blob URLs and serve a rewritten <code>index.html</code> inside an iframe.
-  </p>
-  <select id="ruffleSource">
-    <option value="cdn">Use CDN (online)</option>
-    <option value="local">Use local Ruffle from folder</option>
-  </select>
-  <input id="dirpicker" type="file" webkitdirectory /><span style="margin:0;">or (.ruf) </span><input id="zipPicker" type="file" accept=".ruf" />
-  <button id="runBtn" disabled>Load selected folder</button>
-  <div id="status"></div>
-  <div style="margin-top:8px;">
-    <strong>Files found:</strong>
-    <div id="files" class="files-list"></div>
-  </div>
+  <h2>Upload SWFs &amp; assets</h2>
+  <details>
+    <summary>Upload Options</summary>
+    <div class="panel">
+      <p>
+        Choose a folder that contains <code>index.html</code> and all assets or choose a Ruffle bundle.
+        The script will convert files to data URLs and serve a rewritten <code>index.html</code> in an iframe.
+      </p>
+      <div class="row">
+        <label for="ruffleSource">Source:</label>
+        <select id="ruffleSource">
+          <option value="cdn">Use CDN (online)</option>
+          <option value="local">Use local Ruffle from folder</option>
+        </select>
+      </div>
+      <div class="row">
+        <label for="dirpicker">Folder:</label>
+        <input id="dirpicker" type="file" webkitdirectory />
+      </div>
+      <div class="or-divider">
+        <span>or</span>
+      </div>
+      <div class="row">
+        <label for="zipPicker">Ruffle Bundle:</label>
+        <input id="zipPicker" type="file" accept=".ruf" />
+      </div>
+      <button id="runBtn" disabled>Load Selected Folder</button>
+    </div>
+  </details>
+
+  <details>
+    <summary>Status Log</summary>
+    <pre id="status"></pre>
+  </details>
+
+  <details>
+    <summary>Files Found</summary>
+    <ul id="files" class="files-list"></ul>
+  </details>
 
   <iframe id="frame" title="preview"></iframe>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -89,9 +186,9 @@
         byPath.set(np, fileObj);
         fileList.push(fileObj);
 
-        const div = document.createElement("div");
-        div.textContent = np;
-        filesEl.appendChild(div);
+        const li = document.createElement("li");
+        li.textContent = np;
+        filesEl.appendChild(li);
       }
 
       log("Extracted", fileList.length, "files from ZIP.");
@@ -115,9 +212,9 @@
       const rel = f.webkitRelativePath || f.name;
       const np = normPath(rel);
       byPath.set(np, f);
-      const div = document.createElement('div');
-      div.textContent = np;
-      filesEl.appendChild(div);
+      const li = document.createElement('li');
+      li.textContent = np;
+      filesEl.appendChild(li);
     });
     runBtn.disabled = false;
     clearLog();
@@ -197,8 +294,8 @@
     return stack.join('/');
   }
 
-  // Rewrite CSS text url(...) occurrences to blob URLs using the mapping
-  // mapping: object path -> blobUrl
+  // Rewrite CSS text url(...) occurrences to data URLs using the mapping
+  // mapping: object path -> dataUrl
   function rewriteCssUrls(cssText, baseDir, mapping) {
     // regex to match url(...) and capture path inside
     return cssText.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (m, q, path) => {
@@ -206,12 +303,12 @@
       if (/^(data:|https?:|blob:|\/\/|about:)/i.test(path)) return m;
       const resolved = resolveRelativeUrl(baseDir, path);
       if (!resolved) return m;
-      const blob = mapping.get(resolved);
-      if (!blob) {
+      const dataUri = mapping.get(resolved);
+      if (!dataUri) {
         // not found, leave as-is
         return m;
       }
-      return `url("${blob}")`;
+      return `url("${dataUri}")`;
     });
   }
 
@@ -391,10 +488,10 @@
     }
     log('Using index:', indexPath);
 
-    // Create a mapping of normalized path -> blobUrl or rewritten blob for CSS files.
-    const blobMap = new Map();
+    // Create a mapping of normalized path -> dataUri or rewritten data for CSS files.
+    const dataMap = new Map();
 
-    // First pre-create blob URLs for binary files (images, swf, fonts, etc.) so we can reference them immediately
+    // First pre-create data URLs for binary files (images, swf, fonts, etc.) so we can reference them immediately
     // We'll handle CSS and HTML files specially (so we can rewrite inside them).
     for (const [p, file] of byPath.entries()) {
       const lower = p.toLowerCase();
@@ -402,12 +499,12 @@
       if (lower === indexPath.toLowerCase() || lower.endsWith('.css') || lower.endsWith('.js')) {
         continue;
       }
-      // Create blob URL directly
+      // Create data URL directly
       const url = await fileToDataUri(file);
-      blobMap.set(p, url);
+      dataMap.set(p, url);
     }
 
-    // Prepare handling for CSS files: read them, rewrite url(...) references, produce new blob URLs
+    // Prepare handling for CSS files: read them, rewrite url(...) references, produce new data URLs
     for (const [p, file] of byPath.entries()) {
       if (!p.toLowerCase().endsWith('.css')) continue;
       try {
@@ -415,22 +512,22 @@
         // baseDir for this CSS: directory where file is located
         const idx = p.lastIndexOf('/');
         const baseDir = idx >= 0 ? p.slice(0, idx + 1) : '';
-        const rewritten = rewriteCssUrls(cssText, baseDir, blobMap);
-        // create a new blob with rewritten CSS and store blob URL
-        const newBlob = new Blob([rewritten], { type: 'text/css' });
-        const url = URL.createObjectURL(newBlob);
-        blobMap.set(p, url);
+        const rewritten = rewriteCssUrls(cssText, baseDir, dataMap);
+        // create a new data URI with rewritten CSS
+        const mime = 'text/css';
+        const url = `data:${mime};charset=utf-8,${encodeURIComponent(rewritten)}`;
+		dataMap.set(p, url);
       } catch (err) {
         log('Failed to read/rewire CSS', p, err);
       }
     }
 
-    // Prepare JS files: we can just create blob URLs for them (no rewriting) — but they might import relative resources.
-    // For simplicity, create blob URLs for JS files too (we could rewrite import urls if needed).
+    // Prepare JS files: we can just create data URLs for them (no rewriting) — but they might import relative resources.
+    // For simplicity, create data URLs for JS files too (we could rewrite import urls if needed).
     for (const [p, file] of byPath.entries()) {
       if (!p.toLowerCase().endsWith('.js')) continue;
       const url = await fileToDataUri(file);
-      blobMap.set(p, url);
+      dataMap.set(p, url);
     }
 
     // SVG may contain href/url references to other assets — handling that is possible but omitted here.
@@ -480,7 +577,7 @@
       }
       const resolved = resolveRelativeUrl(baseDir, v);
       if (!resolved) return;
-      const newUrl = blobMap.get(resolved);
+      const newUrl = dataMap.get(resolved);
       if (newUrl) el.setAttribute(attrName, newUrl);
     }
 
@@ -527,7 +624,7 @@
     for (const el of styledEls) {
       const style = el.getAttribute('style');
       if (style && /url\(/i.test(style)) {
-        const rewritten = rewriteCssUrls(style, indexBase, blobMap);
+        const rewritten = rewriteCssUrls(style, indexBase, dataMap);
         el.setAttribute('style', rewritten);
       }
     }
@@ -537,7 +634,7 @@
     for (const s of styleBlocks) {
       const cssText = s.textContent || '';
       if (!cssText) continue;
-      const rewritten = rewriteCssUrls(cssText, indexBase, blobMap);
+      const rewritten = rewriteCssUrls(cssText, indexBase, dataMap);
       s.textContent = rewritten;
     }
 
@@ -550,20 +647,20 @@
     finalizeScript.type = 'text/javascript';
 
     // Strip first path segment from keys
-    const strippedEntries = Array.from(blobMap.entries()).map(([key, value]) => {
+    const strippedEntries = Array.from(dataMap.entries()).map(([key, value]) => {
       const idx = key.indexOf("/");
       const newKey = idx >= 0 ? key.slice(idx + 1) : key;
       return [newKey, value];
     });
 
     // Serialize for injection into iframe
-    const blobMapEntries = JSON.stringify(strippedEntries);
+    const dataMapEntries = JSON.stringify(strippedEntries);
 
     finalizeScript.textContent = `
       (function(){
         const isLocal = ${ruffleSourceEl.value === 'local'};
-        // === BEGIN blob redirect patch ===
-        const blobMap = new Map(${blobMapEntries});
+        // === BEGIN data redirect patch ===
+        const dataMap = new Map(${dataMapEntries});
         const base = document.baseURI;
 
   // Patch dynamic imports used by Webpack
@@ -576,10 +673,10 @@
       Object.defineProperty(el, "src", {
         set(value) {
           // Look up the data URI by the chunk name
-          const keys = Array.from(blobMap.keys());
+          const keys = Array.from(dataMap.keys());
           const key = keys.find(k => k.endsWith(value) || k.endsWith("/" + value));
           if (key) {
-            const dataUri = blobMap.get(key);
+            const dataUri = dataMap.get(key);
             originalSrcSetter.call(this, dataUri);
           } else {
             originalSrcSetter.call(this, value);
@@ -619,7 +716,7 @@
           try {
             url = normalizeUrl(url);
             const absUrl = new URL(url, base).href;
-            for (const [key, blobUrl] of blobMap.entries()) {
+            for (const [key, dataUrl] of dataMap.entries()) {
               const absUrlNoQuery = String(absUrl).split(/[?#]/)[0];
               const pathToUploadedBlob = base.substring(0, base.lastIndexOf('/')) + "/" + key;
               if (
@@ -630,8 +727,8 @@
                   absUrlNoQuery.endsWith(key.replace(/^.*[\\/]/, ''))
                 )
               ) {
-                console.log("🔀 Redirecting fetch from", absUrl, "→", blobUrl);
-                return blobUrl;
+                console.log("🔀 Redirecting fetch from", absUrl, "→", dataUrl);
+                return dataUrl;
               }
             }
           } catch (e) {
@@ -663,7 +760,7 @@
 
           return originalFetch.call(this, url, init);
         };
-        // === END blob redirect patch ===
+        // === END data redirect patch ===
         function tryInstantiate() {
           if (window.RufflePlayer && typeof window.RufflePlayer.instantiateAll === 'function') {
             try {
@@ -690,7 +787,6 @@
     iframe.srcdoc = finalHtml;
 
     log('Done. If SWFs do not start automatically, check console in the preview iframe (right-click → Inspect).');
-    log('Note: blob URLs will be kept alive while this page is open. Refreshing this page will free them.');
   }
 
   runBtn.addEventListener('click', () => {
