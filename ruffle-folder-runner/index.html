@@ -5,6 +5,17 @@
   <title>Local folder → Ruffle runner</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
+  :root {
+    --ruffle-light-blue: #546da3;
+    --ruffle-blue: #37528c;
+    --ruffle-dark-blue: #184778;
+    --ruffle-orange: #ffad33;
+    --ruffle-dark-orange: #966214;
+  }
+  body {
+    background-color: var(--ruffle-blue);
+    color: var(--ruffle-orange);
+  }
   .panel {
     margin: 0 auto;
     max-width: 700px;
@@ -26,13 +37,22 @@
   button {
     padding: 0.4rem 0.6rem;
     border-radius: 6px;
-    border: 1px solid #ccc;
-    background: white;
+    border: 1px solid var(--ruffle-light-blue);
+    background: var(--ruffle-light-blue);
+    color: white;
+  }
+
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    color: lightgray;
   }
 
   details {
     border-radius: 8px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--ruffle-orange);
     margin-top: 1rem;
     padding: 0.5rem 1rem;
   }
@@ -43,7 +63,7 @@
   }
 
   pre {
-    background: #f9fafb;
+    background: var(--ruffle-light-blue);
     border-radius: 6px;
     padding: 0.75rem;
     font-family: monospace;
@@ -60,7 +80,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: dimgray;
     font-weight: bold;
     margin: 0.5rem 0;
     position: relative;
@@ -71,13 +90,13 @@
     content: "";
     flex: 1;
     height: 1px;
-    background: #e5e7eb;
+    background: var(--ruffle-orange);
     margin: 0 0.75rem;
   }
   #frame {
     width: 100%;
     height: 77vh;
-    border: 1px solid #ccc;
+    border: 1px solid var(--ruffle-orange);
     margin-top: 12px;
   }
   h2 {
@@ -463,7 +482,7 @@
       : ""
   }
 </head>
-<body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;">
+<body style="margin:0;background:var(--ruffle-blue);display:flex;align-items:center;justify-content:center;height:100vh;">
   <embed src="${swfUrl}" type="application/x-shockwave-flash" width="100%" height="100%">
 </body>
 </html>`;
