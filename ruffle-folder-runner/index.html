@@ -121,6 +121,10 @@
           <option value="local">Use local Ruffle from folder</option>
         </select>
       </div>
+      <div id="ruffleVersionRow" class="row" style="display: none;">
+        <label for="ruffleVersion">Version:</label>
+        <select id="ruffleVersion"></select>
+      </div>
       <div class="row">
         <label for="dirpicker">Folder:</label>
         <input id="dirpicker" type="file" webkitdirectory />
@@ -156,13 +160,32 @@
   const filesEl = document.getElementById('files');
   const iframe = document.getElementById('frame');
   const zipPicker = document.getElementById("zipPicker");
+  const versionDropdown = document.getElementById("ruffleVersion");
+  const versionRow = document.getElementById("ruffleVersionRow");
 
   const ruffleSourceEl = document.getElementById('ruffleSource');
+  function versionToDate(version) {
+    return version.split(".").slice(-3).map((el) => el.padStart(2, "0")).join("-");
+  }
+  function makeSelectVersion(versions) {
+    versionDropdown.add(new Option("-- Optionally choose version --", ""));
+    versions.forEach((version) => versionDropdown.add(new Option(versionToDate(version), version)));
+    if (ruffleSourceEl.value === "cdn") {
+      versionRow.style.display = "flex";
+    }
+  }
+  ruffleSourceEl.addEventListener("change", () => {
+    versionRow.style.display = ruffleSourceEl.value === "cdn" ? "flex" : "none";
+  });
+  const jsdelivrAPIURL = "https://data.jsdelivr.com/v1/package/npm/@ruffle-rs/ruffle";
+  fetch(jsdelivrAPIURL)
+    .then((response) => response.json())
+    .then((json) => makeSelectVersion(json['versions']));
 
   // CDN URL for Ruffle: if this changes in the future you can replace with the correct one.
   // This should work for most releases; if you want a specific version, append @version:
   // e.g. https://unpkg.com/@ruffle-rs/ruffle@0.20.0/dist/ruffle.js
-  const RUFFLE_CDN = 'https://unpkg.com/@ruffle-rs/ruffle';
+  const UNPKG_CDN = 'https://unpkg.com/@ruffle-rs/ruffle';
 
   let fileList = []; // File objects from input
   let byPath = new Map(); // normalized relative path -> File
@@ -576,9 +599,24 @@
     // Inject the Ruffle CDN script into head (before other scripts), ensure it loads as classic script
     if (ruffleSourceEl.value === 'cdn') {
       const ruffleScriptEl = doc.createElement('script');
-      ruffleScriptEl.src = RUFFLE_CDN;
-      ruffleScriptEl.defer = false;
-      doc.head.appendChild(ruffleScriptEl);
+      const version = versionDropdown.value;
+      if (version) {
+        const cdnURL = "https://cdn.jsdelivr.net/npm/@ruffle-rs/ruffle@" + version;
+        try {
+          const response = await fetch(cdnURL);
+          if (response.ok) {
+            ruffleScriptEl.src = cdnURL;
+          } else {
+            ruffleScriptEl.src = UNPKG_CDN;
+          }
+        } catch (error) {
+          ruffleScriptEl.src = UNPKG_CDN;
+        }
+        doc.head.appendChild(ruffleScriptEl);
+      } else {
+        ruffleScriptEl.src = UNPKG_CDN;
+        doc.head.appendChild(ruffleScriptEl);
+      }
       log('🌐 Using CDN Ruffle.');
     }
     if (ruffleSourceEl.value === 'local') {
