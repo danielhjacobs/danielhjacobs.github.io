@@ -408,6 +408,7 @@
 
           const config = {};
           const params = {};
+		  let allowScript = "sameDomain";
 
           if (playerMatch) {
             for (const line of playerMatch[0].split("\n")) {
@@ -475,6 +476,10 @@
 
                 config[mappedKey] = val;
               }
+              // This isn't an exact match, but should match the desired functionality
+              if (m && "mock_external_interface" === m[1]) {
+                allowScript = "always";
+              }
             }
           }
           let flashVars = "";
@@ -508,7 +513,7 @@
   }
 </head>
 <body style="margin:0;background:var(--ruffle-blue);display:flex;align-items:center;justify-content:center;height:100vh;">
-  <embed flashvars="${flashVars}" src="${swfUrl}" type="application/x-shockwave-flash" width="100%" height="100%">
+  <embed allowScriptAccess="${allowScript}" flashvars="${flashVars}" src="${swfUrl}" type="application/x-shockwave-flash" width="100%" height="100%">
 </body>
 </html>`;
             // Create a virtual File for consistency
