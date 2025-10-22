@@ -407,6 +407,7 @@
           };
 
           const config = {};
+          const params = {};
 
           if (playerMatch) {
             for (const line of playerMatch[0].split("\n")) {
@@ -414,7 +415,7 @@
               // Load behavior desktop only per https://github.com/ruffle-rs/ruffle/pull/8009#issuecomment-1283092686
               // Dummy external interface is desktop only: https://github.com/ruffle-rs/ruffle/pull/11439
               // Spoof URL is desktop only: https://github.com/ruffle-rs/ruffle/pull/8185
-              if (m && !["mock_external_interface", "load_behavior", "spoof_url"].includes(m[1])) {
+              if (m && !["load_behavior", "spoof_url", "mock_external_interface"].includes(m[1])) {
                 const tomlKey = m[1];
                 const mappedKey = tomlToConfigMap[tomlKey] || tomlKey;
                 let val = m[2];
@@ -476,13 +477,14 @@
               }
             }
           }
+          let flashVars = "";
           const paramsMatch = tomlText.match(/\[player\.parameters\][\s\S]*?(?=\[|$)/i);
           if (paramsMatch) {
-            config.parameters = {};
             for (const line of paramsMatch[0].split("\n")) {
               const m = line.match(/^\s*([\w_]+)\s*=\s*["']([^"']+)["']/);
-              if (m) config.parameters[m[1]] = m[2];
+              if (m) params[m[1]] = m[2];
             }
+			flashVars = Object.entries(params).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`).join("&");
           }
           indexPath = '__generated_index.html';
           indexHtmlText = `
@@ -506,7 +508,7 @@
   }
 </head>
 <body style="margin:0;background:var(--ruffle-blue);display:flex;align-items:center;justify-content:center;height:100vh;">
-  <embed src="${swfUrl}" type="application/x-shockwave-flash" width="100%" height="100%">
+  <embed flashvars="${flashVars}" src="${swfUrl}" type="application/x-shockwave-flash" width="100%" height="100%">
 </body>
 </html>`;
             // Create a virtual File for consistency
@@ -817,19 +819,6 @@
 
           return originalFetch.call(this, url, init);
         };
-        // === END data redirect patch ===
-        function tryInstantiate() {
-          if (window.RufflePlayer && typeof window.RufflePlayer.instantiateAll === 'function') {
-            try {
-              window.RufflePlayer.configure && window.RufflePlayer.configure({ use_swfobject: false });
-            } catch(e){}
-            window.RufflePlayer.instantiateAll();
-          } else {
-            // try again
-            setTimeout(tryInstantiate, 200);
-          }
-        }
-        tryInstantiate();
       })();
     `;
     const baseElement = document.createElement('base');
