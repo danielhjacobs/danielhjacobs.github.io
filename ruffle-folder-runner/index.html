@@ -440,7 +440,7 @@
                   case "force_align":
                   case "force_scale_mode":
                   case "upgrade_http_to_https":
-                    val = val === "true";
+                    val = val.trim().toLowerCase() === "true";
                     break;
 
                   case "scale_mode": {
@@ -478,7 +478,8 @@
               }
               // This isn't an exact match, but should match the desired functionality
               if (m && "mock_external_interface" === m[1]) {
-                allowScript = "always";
+                const val = m[2];
+                allowScript = val.trim().toLowerCase() === "true" ? "always" : "";
               }
             }
           }
