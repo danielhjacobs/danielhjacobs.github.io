@@ -408,7 +408,7 @@
 
           const config = {};
           const params = {};
-		  let allowScript = "sameDomain";
+		  let allowScript = false;
 
           if (playerMatch) {
             for (const line of playerMatch[0].split("\n")) {
@@ -479,7 +479,7 @@
               // This isn't an exact match, but should match the desired functionality
               if (m && "mock_external_interface" === m[1]) {
                 const val = m[2];
-                allowScript = val.trim().toLowerCase() === "true" ? "always" : "";
+                allowScript = val.trim().toLowerCase() === "true";
               }
             }
           }
@@ -514,7 +514,31 @@
   }
 </head>
 <body style="margin:0;background:var(--ruffle-blue);display:flex;align-items:center;justify-content:center;height:100vh;">
-  <embed allowScriptAccess="${allowScript}" flashvars="${flashVars}" src="${swfUrl}" type="application/x-shockwave-flash" width="100%" height="100%">
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const ruffle = window.RufflePlayer?.newest?.();
+      if (!ruffle) {
+        console.error("Ruffle not loaded properly.");
+        return;
+      }
+
+      const player = ruffle.createPlayer();
+      player.style.width = "100%";
+      player.style.height = "100%";
+      const body = document.querySelector("body");
+      body.appendChild(player);
+
+      try {
+        player.ruffle().load({
+          url: ${JSON.stringify(swfUrl)},
+          parameters: ${JSON.stringify(flashVars)},
+          allowScriptAccess: ${allowScript}
+        });
+      } catch (e) {
+        console.error("Failed to load SWF:", e);
+      }
+    });
+  <\/script>
 </body>
 </html>`;
             // Create a virtual File for consistency
