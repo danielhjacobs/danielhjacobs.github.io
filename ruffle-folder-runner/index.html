@@ -816,7 +816,7 @@
                   absUrlNoQuery.endsWith(key.replace(/^.*[\\/]/, ''))
                 )
               ) {
-                console.log("🔀 Redirecting fetch from", absUrl, "→", dataUrl);
+                console.info(`Redirecting fetch from ${absUrl}`);
                 return dataUrl;
               }
             }
