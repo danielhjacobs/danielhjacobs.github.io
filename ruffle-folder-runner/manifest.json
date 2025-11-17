@@ -3,8 +3,6 @@
   "short_name": "RufRun",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#ffad33",
-  "theme_color": "#ffad33",
   "icons": [
     {
       "src": "icon.png",
