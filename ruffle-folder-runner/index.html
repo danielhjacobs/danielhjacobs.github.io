@@ -188,7 +188,7 @@
   // CDN URL for Ruffle: if this changes in the future you can replace with the correct one.
   // This should work for most releases; if you want a specific version, append @version:
   // e.g. https://unpkg.com/@ruffle-rs/ruffle@0.20.0/dist/ruffle.js
-  const UNPKG_CDN = 'https://unpkg.com/@ruffle-rs/ruffle';
+  const UNPKG_CDN = navigator.onLine ? 'https://unpkg.com/@ruffle-rs/ruffle' : 'ruffle/ruffle.js';
 
   let fileList = []; // File objects from input
   let byPath = new Map(); // normalized relative path -> File
