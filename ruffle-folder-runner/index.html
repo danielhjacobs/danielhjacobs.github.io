@@ -181,9 +181,11 @@
     versionRow.style.display = ruffleSourceEl.value === "cdn" ? "flex" : "none";
   });
   const jsdelivrAPIURL = "https://data.jsdelivr.com/v1/package/npm/@ruffle-rs/ruffle";
-  fetch(jsdelivrAPIURL)
-    .then((response) => response.json())
-    .then((json) => makeSelectVersion(json['versions']));
+  if (navigator.onLine) {
+    fetch(jsdelivrAPIURL)
+      .then((response) => response.json())
+      .then((json) => makeSelectVersion(json['versions']));
+  }
 
   // CDN URL for Ruffle: if this changes in the future you can replace with the correct one.
   // This should work for most releases; if you want a specific version, append @version:
@@ -879,8 +881,8 @@
   });
 
 })();
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("service-worker.js");
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.protocol === "http:")) {
+  navigator.serviceWorker.register("service-worker.js").catch(console.error);
 }
 </script>
 </body>
