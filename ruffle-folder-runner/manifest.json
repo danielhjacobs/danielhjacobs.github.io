@@ -1,0 +1,21 @@
+{
+  "name": "Ruffle Runner",
+  "short_name": "RufRun",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffad33",
+  "theme_color": "#ffad33",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
+
