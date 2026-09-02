@@ -160,6 +160,7 @@
   const dirpicker = document.getElementById('dirpicker');
   const runBtn = document.getElementById('runBtn');
   const statusEl = document.getElementById('status');
+  const statusDetails = document.getElementById('statusDetails');
   const filesEl = document.getElementById('files');
   const iframe = document.getElementById('frame');
   const zipPicker = document.getElementById("zipPicker");
@@ -197,6 +198,13 @@
 
   function log(...args) {
     statusEl.textContent = (statusEl.textContent ? statusEl.textContent + '\n' : '') + args.join(' ');
+  }
+
+  function logError(...args) {
+    log(...args);
+    if (statusDetails) {
+      statusDetails.open = true;
+    }
   }
 
   function clearLog() {
@@ -241,7 +249,7 @@
       log("Extracted", fileList.length, "files from ZIP.");
       runBtn.disabled = false;
     } catch (err) {
-      log("Failed to read ZIP:", err);
+      logError("Failed to read ZIP:", err);
     }
     ruffleSourceEl.value = "cdn";
   });
@@ -364,7 +372,7 @@
     log('Preparing...');
 
     if (!byPath.size) {
-      log('No files selected.');
+      logError('No files selected.');
       return;
     }
 
@@ -550,15 +558,15 @@
             // Create a virtual File for consistency
             byPath.set(indexPath, new File([indexHtmlText], indexPath, { type: 'text/html' }));
           } else {
-            log('ruffle-bundle.toml found but no valid "url =" line detected.');
+            logError('ruffle-bundle.toml found but no valid "url =" line detected.');
             return;
           }
         } catch (err) {
-          log('Error reading ruffle-bundle.toml:', err);
+          logError('Error reading ruffle-bundle.toml:', err);
           return;
         }
       } else {
-        log('No index.html or ruffle-bundle.toml found in uploaded folder or bundle.');
+        logError('No index.html or ruffle-bundle.toml found in uploaded folder or bundle.');
         return;
       }
     }
@@ -598,7 +606,7 @@
         const url = `data:${mime};charset=utf-8,${encodeURIComponent(rewritten)}`;
 		dataMap.set(p, url);
       } catch (err) {
-        log('Failed to read/rewire CSS', p, err);
+        logError('Failed to read/rewire CSS', p, err);
       }
     }
 
@@ -874,7 +882,7 @@
   runBtn.addEventListener('click', () => {
     runBtn.disabled = true;
     buildAndLaunch().catch(err => {
-      log('Error:', err && err.message ? err.message : String(err));
+      logError('Error:', err && err.message ? err.message : String(err));
     }).finally(() => {
       runBtn.disabled = false;
     });
