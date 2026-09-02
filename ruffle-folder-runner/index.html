@@ -155,6 +155,7 @@
 
   <iframe id="frame" title="preview"></iframe>
 <script src="jszip.min.js"></script>
+<script src="ruffle/wasm-data.js"></script>
 <script>
 (async () => {
   const dirpicker = document.getElementById('dirpicker');
@@ -741,6 +742,14 @@
       s.textContent = rewritten;
     }
 
+    // Pre-fetch local Ruffle assets into dataMap so offline fetches don't fall through to originalFetch
+    if (!navigator.onLine && window.RUFFLE_WASM_EMBEDDED) {
+      for (const [fileName, dataUri] of Object.entries(window.RUFFLE_WASM_EMBEDDED)) {
+        dataMap.set(fileName, dataUri);
+        dataMap.set(`ruffle/${fileName}`, dataUri);
+      }
+    }
+
     // If there are <link rel="stylesheet"> tags, their href should already have been replaced above (mapAttr).
     // But if some CSS files referenced other assets, we already rewrote them when we preprocessed CSS.
 
@@ -822,6 +831,8 @@
             for (const [key, dataUrl] of dataMap.entries()) {
               const absUrlNoQuery = String(absUrl).split(/[?#]/)[0];
               const pathToUploadedBlob = base.substring(0, base.lastIndexOf('/')) + "/" + key;
+			  console.log(absUrlNoQuery);
+			  console.log(pathToUploadedBlob);
               if (
                 absUrlNoQuery === pathToUploadedBlob ||
                 (
@@ -855,6 +866,7 @@
             return originalFetch.call(this, input, init);
           }
 
+          console.log("fetch: " +  url);
           // If input is a string
           const redirected = resolveBlobRedirect(input);
           if (redirected) {
