@@ -831,8 +831,6 @@
             for (const [key, dataUrl] of dataMap.entries()) {
               const absUrlNoQuery = String(absUrl).split(/[?#]/)[0];
               const pathToUploadedBlob = base.substring(0, base.lastIndexOf('/')) + "/" + key;
-			  console.log(absUrlNoQuery);
-			  console.log(pathToUploadedBlob);
               if (
                 absUrlNoQuery === pathToUploadedBlob ||
                 (
@@ -866,7 +864,6 @@
             return originalFetch.call(this, input, init);
           }
 
-          console.log("fetch: " +  url);
           // If input is a string
           const redirected = resolveBlobRedirect(input);
           if (redirected) {
